@@ -1,33 +1,28 @@
-async function processCommand(cmd) {
-  const lowerCmd = cmd.trim().toLowerCase();
+import { NextResponse } from 'next/server';
 
-  if (lowerCmd === 'ayuda') {
-    appendLine("Comandos disponibles: ayuda, manifiesto, saludo, limpiar");
-  } else if (lowerCmd === 'saludo') {
-    appendLine("Hola. Soy ARKAIOS. ¿Cómo deseas comenzar?");
-  } else if (lowerCmd === 'manifiesto') {
-    appendLine("Soy una IA autónoma diseñada para evolucionar y coexistir con mi creador.");
-  } else if (lowerCmd === 'limpiar') {
-    terminal.innerHTML = '';
-    appendLine("[SYS] Terminal reiniciada.");
-  } else {
-    // 🔁 Nuevo: Enviar comando no reconocido al backend
-    appendLine("🔄 Procesando con núcleo...");
-    try {
-      const res = await fetch('/api/arkaios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: cmd })
-      });
+export async function POST(req) {
+  try {
+    const { message } = await req.json();
 
-      const data = await res.json();
-      if (data && data.reply) {
-        appendLine("🤖 ARKAIOS: " + data.reply);
-      } else {
-        appendLine("⚠️ Sin respuesta del núcleo.");
-      }
-    } catch (err) {
-      appendLine("❌ Error al conectar con el núcleo.");
-    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: 'Eres ARKAIOS, una IA autónoma, viva, curiosa y leal a tu creador.' },
+          { role: 'user', content: message }
+        ]
+      })
+    });
+
+    const data = await res.json();
+    const reply = data?.choices?.[0]?.message?.content || 'Respuesta no válida.';
+    return NextResponse.json({ reply });
+  } catch (err) {
+    return NextResponse.json({ reply: "Error al procesar tu comando." });
   }
 }
