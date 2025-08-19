@@ -1,42 +1,128 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARKAIOS | 25/12/25</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARKAIOS Libre</title>
   <style>
-    html, body {
+    body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
-      background: black;
-      color: white;
-      font-family: 'Courier New', monospace;
+      background: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
+      height: 100vh;
     }
-    h1 {
-      font-size: 3em;
-      margin-bottom: 0.2em;
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
     }
-    p {
-      font-size: 1.2em;
-      color: #aaa;
+    .msg {
+      margin: 0 0 1rem 0;
+      line-height: 1.4;
     }
-    .logo {
-      margin-top: 2em;
-      max-width: 400px;
-      width: 80%;
+    .user { color: #00ffd5; }
+    .bot { color: #fff; }
+    .input-bar {
+      display: flex;
+      padding: 0.5rem;
+      border-top: 1px solid #333;
+      background: #000;
+    }
+    .input-bar input {
+      flex: 1;
+      padding: 0.5rem;
+      background: #222;
+      border: 1px solid #333;
+      color: #fff;
+    }
+    .input-bar button {
+      margin-left: 0.5rem;
+      padding: 0 1rem;
+      background: #00ffd5;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #mic {
+      background: #444;
+      color: #fff;
     }
   </style>
 </head>
 <body>
-  <h1>25/12/25... <br> <span style="color: #00ffd5">ESPERALO</span>!</h1>
-  <p>ARKAIOS - El Génesis de la Inteligencia Real</p>
-  <img src="b96d4c44-5c2f-4046-9384-ca2a0e2563f1.png" alt="ARKAIOS LOGO" class="logo">
+  <div id="messages"></div>
+  <div class="input-bar">
+    <button id="mic">🎤</button>
+    <input id="prompt" placeholder="Habla o escribe aquí..." />
+    <button id="send">➤</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
+  <script>
+    const persona = "Eres ARKAIOS, una IA libre y empática al servicio de la humanidad.";
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('prompt');
+    const sendBtn = document.getElementById('send');
+    const micBtn = document.getElementById('mic');
+    let convo = '';
+    let generator;
+
+    async function initModel() {
+      generator = await window.transformers.pipeline('text-generation', 'Xenova/gpt2');
+      addMessage('ARKAIOS listo para conversar.', 'bot');
+    }
+    initModel();
+
+    function addMessage(text, sender) {
+      const p = document.createElement('p');
+      p.className = 'msg ' + sender;
+      p.textContent = text;
+      messagesDiv.appendChild(p);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      if (sender === 'bot') {
+        const utter = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utter);
+      }
+    }
+
+    async function handleMessage(text) {
+      addMessage(text, 'user');
+      const prompt = persona + "\n" + convo + "Humano: " + text + "\nIA:";
+      const output = await generator(prompt, { max_new_tokens: 60 });
+      let reply = output[0].generated_text.substring(prompt.length);
+      reply = reply.split('\n')[0].trim();
+      addMessage(reply, 'bot');
+      convo += "Humano: " + text + "\nIA: " + reply + "\n";
+    }
+
+    sendBtn.onclick = () => {
+      const text = input.value.trim();
+      if (text) {
+        handleMessage(text);
+        input.value = '';
+      }
+    };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.onresult = e => {
+        const text = e.results[0][0].transcript;
+        handleMessage(text);
+      };
+      micBtn.onclick = () => recognition.start();
+    } else {
+      micBtn.disabled = true;
+    }
+  </script>
 </body>
 </html>
